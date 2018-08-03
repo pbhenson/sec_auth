@@ -19,8 +19,15 @@ static krb5_context context;
 static char *local_cell_name = NULL;
 static int initialized = 0;
 static sec_attr_schema_entry_t sec_auth_dce_deskey_schema;
+#ifdef SEC_AUTH_MS_NTHASH
 static sec_attr_schema_entry_t sec_auth_ms_nthash_schema;
+#endif
+#ifdef SEC_AUTH_MS_LMHASH
 static sec_attr_schema_entry_t sec_auth_ms_lmhash_schema;
+#endif
+#if defined(SEC_AUTH_APPLE_RANDNUM) || defined(SEC_AUTH_APPLE_RAND2NUM)
+static sec_attr_schema_entry_t sec_auth_apple_deskey_schema;
+#endif
 static krb5_encrypt_block global_encblock;
 static krb5_keyblock global_keyblock;
 static sec_rgy_handle_t rgy_handle;
@@ -119,6 +126,7 @@ int sec_auth_gen_eras_init() {
     return 0;
   }
 
+#ifdef SEC_AUTH_MS_NTHASH  
   sec_rgy_attr_sch_lookup_by_name(sec_rgy_default_handle, NULL, "auth_ms_nthash", &sec_auth_ms_nthash_schema, &dce_st);
 
   if (dce_st) {
@@ -126,7 +134,9 @@ int sec_auth_gen_eras_init() {
     syslog(LOG_ERR, "sec_rgy_attr_sch_lookup_by_name for auth_ms_nthash failed - %s", dce_error);
     return 0;
   }
+#endif  
 
+#ifdef SEC_AUTH_MS_LMHASH
   sec_rgy_attr_sch_lookup_by_name(sec_rgy_default_handle, NULL, "auth_ms_lmhash", &sec_auth_ms_lmhash_schema, &dce_st);
 
   if (dce_st) {
@@ -134,6 +144,17 @@ int sec_auth_gen_eras_init() {
     syslog(LOG_ERR, "sec_rgy_attr_sch_lookup_by_name for auth_ms_lmhash failed - %s", dce_error);
     return 0;
   }
+#endif
+
+#if defined(SEC_AUTH_APPLE_RANDNUM) || defined(SEC_AUTH_APPLE_RAND2NUM)  
+  sec_rgy_attr_sch_lookup_by_name(sec_rgy_default_handle, NULL, "auth_apple_deskey", &sec_auth_apple_deskey_schema, &dce_st);
+
+  if (dce_st) {
+    dce_error_inq_text(dce_st, dce_error, &dce_error_st);
+    syslog(LOG_ERR, "sec_rgy_attr_sch_lookup_by_name for auth_apple_deskey failed - %s", dce_error);
+    return 0;
+  }
+#endif
 
   if (krb5_status = krb5_init_context(&context)) {
     syslog(LOG_ERR, "krb5_init_context failed - %s", error_message(krb5_status));
@@ -208,7 +229,8 @@ static int sec_auth_gen_ms_hash(char *username, char *password) {
   samba_nt_lm_owf_gen(password, nthash, lmhash);
   
   encrypted_length = krb5_encrypt_size(16, global_encblock.crypto_entry);
-  
+
+#ifdef SEC_AUTH_MS_NTHASH
   attr.attr_id = sec_auth_ms_nthash_schema.attr_id;
   attr.attr_value.attr_encoding = sec_attr_enc_bytes;
 
@@ -232,7 +254,9 @@ static int sec_auth_gen_ms_hash(char *username, char *password) {
     free(attr.attr_value.tagged_union.bytes);
     return 0;
   }
+#endif
 
+#ifdef SEC_AUTH_MS_LMHASH  
   attr.attr_id = sec_auth_ms_lmhash_schema.attr_id;
 
   krb5_encrypt(context, (krb5_pointer) lmhash, attr.attr_value.tagged_union.bytes->data, 16, &global_encblock, 0);
@@ -246,7 +270,63 @@ static int sec_auth_gen_ms_hash(char *username, char *password) {
     syslog(LOG_ERR, "sec_auth_gen_mshash sec_rgy_attr_update failed - %s", dce_error);
     return 0;
   }
+#endif
   
+  return 1;
+}
+
+
+static int sec_auth_gen_apple_deskey(char *username, char *password) {
+
+#if defined(SEC_AUTH_APPLE_RANDNUM) || defined(SEC_AUTH_APPLE_RAND2NUM)
+  error_status_t dce_st;
+  dce_error_string_t dce_error;
+  int dce_error_st;
+  sec_attr_t attr;
+  int encrypted_length;
+  char deskey[8] = {0,0,0,0,0,0,0,0};
+  int index;
+  unsigned32 num_returned;
+  sec_attr_t out_attr;
+  unsigned32 num_left;
+  signed32 failure_index;
+  
+  for (index = 0; index < 8 && password[index]; index++) {
+    if ((password[index] != ' ') && isspace(password[index]))
+      deskey[index] = '\0';
+    else
+      deskey[index] = password[index];
+  }
+    
+  encrypted_length = krb5_encrypt_size(8, global_encblock.crypto_entry);
+  
+  attr.attr_id = sec_auth_apple_deskey_schema.attr_id;
+  attr.attr_value.attr_encoding = sec_attr_enc_bytes;
+
+  attr.attr_value.tagged_union.bytes = (sec_attr_enc_bytes_t *)
+    malloc(sizeof(sec_attr_enc_bytes_t) + ((encrypted_length + 1) * sizeof(idl_byte)));
+
+  if (!attr.attr_value.tagged_union.bytes) {
+    syslog(LOG_ERR, "sec_auth_gen_apple_deskey malloc failed - %m");
+    return 0;
+  }
+  
+  attr.attr_value.tagged_union.bytes->length = encrypted_length;
+
+  krb5_encrypt(context, (krb5_pointer) deskey, attr.attr_value.tagged_union.bytes->data, 8, &global_encblock, 0);
+
+  sec_rgy_attr_update(rgy_handle, sec_rgy_domain_person, username, 1, 0, &attr, &num_returned, &out_attr, &num_left, &failure_index, &dce_st);
+
+  free(attr.attr_value.tagged_union.bytes);
+
+  if (dce_st) {
+    dce_error_inq_text(dce_st, dce_error, &dce_error_st);
+    syslog(LOG_ERR, "sec_auth_gen_apple_deskey sec_rgy_attr_update failed - %s", dce_error);
+    free(attr.attr_value.tagged_union.bytes);
+    return 0;
+  }
+#endif
+
   return 1;
 }
 
@@ -329,6 +409,7 @@ int sec_auth_gen_eras(char *username, char *password) {
   int status = 1;
   
   status = status && sec_auth_gen_ms_hash(username, password);
+  status = status && sec_auth_gen_apple_deskey(username, password);
   status = status && sec_auth_gen_dce_deskey(username, password);
   
   return status;

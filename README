@@ -1,4 +1,4 @@
-Extended Authentication Package (sec_auth) version 0.5
+Extended Authentication Package (sec_auth) version 0.8
 ------------------------------------------------------
 
 Introduction
@@ -18,13 +18,14 @@ still reap the benefits of DCE and DFS.
 
 Currently, sec_auth supports the Microsoft Windows challenge/response
 authentication system including both the original LAN manager version and
-the newer NT version. Combined with an enhanced version of Samba, Windows
+the newer NT version, as well as the Apple random number exchange
+authentication system, including one-way and two-way versions. Combined
+with enhanced versions of Samba and Netatalk, Windows and MacOS
 clients can gain access to DFS using encrypted, rather than plaintext,
 passwords. Not only is this more secure, it removes the need for any
 registry modifications on the client, as well as providing better
-integration with Windows NT. Future versions of sec_auth will support the
-Apple random number exchange authentication method and possibly other
-systems.
+integration with Windows NT. Future versions of sec_auth could support
+other systems.
 
 
 Design
@@ -32,7 +33,7 @@ Design
 
 The problem with non-plaintext password legacy authentication systems is
 that while a legacy server might be convinced of a client's identity, it
-cannot than authenticate the client to DCE and acquire credentials. To
+cannot then authenticate the client to DCE and acquire credentials. To
 successfully authenticate to DCE requires a plaintext password, a Kerberos
 ticket granting ticket (TGT), or a DES key. While many legacy application
 systems support a plaintext password mode of operation, transferring
@@ -68,7 +69,19 @@ mechanisms.
 Changes
 -------
 
-0.5 - first publicly released version
+0.8 - Added support for Apple random number exchange authentication
+      methods.
+
+    - Added compile-time options for selecting supported authentication
+      methods.
+
+    - Fixed misuse of Kerberos encryption API that was causing
+      memory corruption.  
+
+    - Note: this version was never publicly released.
+
+
+0.5 - first publicly released version.
 
 
 Feedback/Availability

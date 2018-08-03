@@ -8,10 +8,16 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define SEC_AUTH_MS_NTHASH
+#define SEC_AUTH_MS_LMHASH
+#define SEC_AUTH_APPLE_RANDNUM
+#define SEC_AUTH_APPLE_RAND2NUM
+
 #define SEC_AUTH_RPC_ENTRY_PREFIX "/.:/subsys/dce/sec_auth"
 #define SEC_AUTH_RPC_GROUP_NAME   "/.:/sec_auth"
-#define SEC_AUTH_KEY_SALT         "salt"
-#define SEC_AUTH_KEY_STRING       "key"
+
+#define SEC_AUTH_KEY_SALT         "<salt>"
+#define SEC_AUTH_KEY_STRING       "<key>"
 #define SEC_AUTH_GOD_GROUP        "dceadmin"
 
 #define PWD_STRENGTHD_PRINCIPAL "pwd_strengthd"

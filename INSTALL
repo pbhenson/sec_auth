@@ -6,13 +6,24 @@ Makefile and modify KRB5_ROOT to the directory where you installed Kerberos
 V. If your version of the DCE library (libdce) has name space collisions
 with the Kerberos libraries, you'll need to patch the Kerberos source code
 to remove them and recompile, or convince your DCE vendor to fix them in
-the DCE library. Transarc's DCE 2.0 for Solaris 2.6 has two collisions
-which should be fixed in a future patch. Contact me for more details on a
-workaround until the patch is released.
+the DCE library. Transarc's original release of DCE 2.0 for Solaris 2.6 has
+two collisions which should be fixed in patch level 6.
+
+If you're outside the USA, I have been told that you can get of copy of
+Kerberos V from:
+
+     ftp://ftp.fu-berlin.de/unix/security/replay-mirror/crypto/APPS/kerberos/krb5-105/
+
 
 The DCE IDL compiler is required as well as the rsec_pwd_mgmt.idl file. If
 this file is not located in /usr/include/dce on your system, edit the
 Makefile in the idl subdirectory to point to its location on your system.
+
+If you wish to support AppleTalk encrypted passwords, you'll need libdes,
+available from:
+
+     ftp.psy.uq.oz.au/pub/Crypto/libeay
+
 
 sec_auth requires a password strength daemon. If you are currently running
 a password strength daemon, you will need to either include its
@@ -32,6 +43,16 @@ configuration must be performed by an appropriately authorized account.
 
 
 1. sec_auth Configuration
+
+First, you must decide which authentication methods you wish to support.
+By default, they are all enabled. To disable a method, comment out the
+appropriate line defining that method in the config.h file.
+
+     #define SEC_AUTH_MS_NTHASH
+     #define SEC_AUTH_MS_LMHASH
+     #define SEC_AUTH_APPLE_RANDNUM
+     #define SEC_AUTH_APPLE_RAND2NUM
+
 
 sec_auth uses CDS to store binding information. If you do not wish to use
 the default entries, edit the config.h file and change the appropriate
@@ -83,25 +104,34 @@ location, change the definitions listed below in the config.h file.
 
 You are now ready to compile sec_auth. Simply type make to generate the
 sec_auth daemon (sec_authd), the password strength daemon (pwd_strengthd),
-as well as the include file and library needed for sec_auth clients.
+as well as the include file and library needed for sec_auth clients. Note
+that gcc 2.8.1 under Solaris 2.6 seems to have a bug that causes
+authenticated RPCs to fail. You should use either gcc 2.7.2 or gcc 2.95.
 
 
 2. Registry Configuration
 
 sec_auth requires the creation of several extended registry attribute
-schemas. The following dcecp commands will create the appropriate schemas:
+schemas. While the auth_dce_deskey schema is required in all installations,
+you need only create the other schema(s) needed for the authentication
+method(s) you will be using. The following dcecp commands will create the
+appropriate schemas:
 
      dcecp -c xattrschema create /.:/sec/xattrschema/auth_dce_deskey \
-        -aclmgr {principal m m m m} -annotation "DCE DES key" -applydefs no \
+        -aclmgr '{principal m m m m}' -annotation '"DCE DES key"' -applydefs no \
         -encoding byte -intercell reject -multivalued no -reserved yes -unique no
 
      dcecp -c xattrschema create /.:/sec/xattrschema/auth_ms_nthash \
-        -aclmgr {principal m m m m} -annotation "Microsoft NT hash" -applydefs no \
+        -aclmgr '{principal m m m m}' -annotation '"Microsoft NT hash"' -applydefs no \
         -encoding byte -intercell reject -multivalued no -reserved yes -unique no
 
      dcecp -c xattrschema create /.:/sec/xattrschema/auth_ms_lmhash \
-        -aclmgr {principal m m m m} -annotation "Microsoft LM hash" -applydefs no \
+        -aclmgr '{principal m m m m}' -annotation '"Microsoft LM hash"' -applydefs no \
         -encoding byte -intercell reject  -multivalued no -reserved yes -unique no
+
+     dcecp -c xattrschema create /.:/sec/xattrschema/auth_apple_deskey \
+        -aclmgr '{principal m m m m}' -annotation '"Apple DES key"' -applydefs no \
+        -encoding byte -intercell reject -multivalued no -reserved yes -unique no
 
 
 sec_auth requires the creation of a password strength daemon principal and
@@ -216,8 +246,8 @@ location on your system.
 Servers Supported by sec_auth
 -----------------------------
 
-Currently, the only server supported by sec_auth is Samba. To take
-advantage of sec_auth support, you must install the DCE/DFS integration
-patch for Samba, available at:
+Currently, the servers supported by sec_auth are Samba and Netatalk. To
+take advantage of sec_auth support, you must install the DCE/DFS
+integration patches for Samba and/or Netatalk, available at:
 
-     http://www.csupomona.edu/~henson/www/projects/dce_patches/samba/
+     http://www.csupomona.edu/~henson/www/projects/dce_patches/
