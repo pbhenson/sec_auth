@@ -8,10 +8,10 @@ CC = gcc
 CFLAGS = -O2 -D_REENTRANT -I../idl
 LDFLAGS =
 LIBS = -ldce -ldes
-KRB5_ROOT = /usr/local/opt/krb5-1.0.5-dce
+KRB5_ROOT = /usr/local/opt/krb5-1.2.1
 KRB5_CFLAGS = -I$(KRB5_ROOT)/include
 KRB5_LDFLAGS = -L$(KRB5_ROOT)/lib -R$(KRB5_ROOT)/lib
-KRB5_LIBS = -lkrb5 -lcrypto -lcom_err
+KRB5_LIBS = -lkrb5 -lk5crypto -lcom_err
 
 all: build-idl build-samba build-pwd_strengthd build-sec_authd
 

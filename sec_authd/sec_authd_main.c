@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <signal.h>
 #include <netdb.h>
 #include <dce/rpc.h>
 #include <dce/dce_error.h>
@@ -29,6 +30,13 @@ extern krb5_context context;
 extern krb5_encrypt_block encblock;
 extern krb5_keyblock keyblock;
 extern char *local_cell;
+
+static int clean_up(int signal)
+{
+  syslog(LOG_NOTICE, "received SIGHUP or SIGTERM, exiting.");
+  unlink(SEC_AUTHD_PIDFILE);
+  exit(0);
+}
 
 int main(int argc, char **argv)
 {
@@ -182,6 +190,24 @@ int main(int argc, char **argv)
       syslog(LOG_ERR, "rpc_binding_vector_free failed - %s", dce_error);
       exit(1);
     }
+
+  {
+    FILE *pidfile;
+
+    if ((pidfile = fopen(SEC_AUTHD_PIDFILE, "w")) != NULL)
+      {
+        fprintf(pidfile, "%d\n", getpid());
+        fclose(pidfile);
+      }
+    else
+      {
+        syslog(LOG_ERR, "open of pidfile %s failed - %m.", SEC_AUTHD_PIDFILE);
+        syslog(LOG_NOTICE, "failed to log pid.");
+      }
+  }
+
+  signal(SIGHUP, (void *)clean_up);
+  signal(SIGTERM, (void *)clean_up);
 
   rpc_server_listen(rpc_c_listen_max_calls_default, &dce_st);
   if (dce_st)

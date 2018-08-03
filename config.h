@@ -16,9 +16,11 @@
 #define SEC_AUTH_RPC_ENTRY_PREFIX "/.:/subsys/dce/sec_auth"
 #define SEC_AUTH_RPC_GROUP_NAME   "/.:/sec_auth"
 
-#define SEC_AUTH_KEY_SALT         "<salt>"
-#define SEC_AUTH_KEY_STRING       "<key>"
+#define SEC_AUTH_KEY_SALT         ""
+#define SEC_AUTH_KEY_STRING       ""
 #define SEC_AUTH_GOD_GROUP        "dceadmin"
+
+#define SEC_AUTHD_PIDFILE         "/var/run/sec_authd.pid"
 
 #define PWD_STRENGTHD_PRINCIPAL "pwd_strengthd"
 #define PWD_STRENGTHD_KEYTAB "FILE:/krb5/pwd_strengthd.keytab"
