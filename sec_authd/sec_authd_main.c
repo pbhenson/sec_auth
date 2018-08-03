@@ -105,7 +105,7 @@ int main(int argc, char **argv)
     exit(1);
   }
  
-  rpc_server_register_if(sec_auth_v1_1_s_ifspec,
+  rpc_server_register_if(sec_auth_v2_0_s_ifspec,
 			 NULL,
 			 NULL,
 			 &dce_st);
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     }
  
 
-  rpc_ep_register(sec_auth_v1_1_s_ifspec, binding_vector, NULL, NULL, &dce_st);
+  rpc_ep_register(sec_auth_v2_0_s_ifspec, binding_vector, NULL, NULL, &dce_st);
   if (dce_st)
     {
       dce_error_inq_text(dce_st, dce_error, &dce_error_st);
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
       exit(1);
     }
 
-  rpc_ns_binding_export(rpc_c_ns_syntax_dce, entry_name, sec_auth_v1_1_s_ifspec,
+  rpc_ns_binding_export(rpc_c_ns_syntax_dce, entry_name, sec_auth_v2_0_s_ifspec,
 			binding_vector, NULL, &dce_st);
   if (dce_st)
     {

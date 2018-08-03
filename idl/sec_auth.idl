@@ -7,7 +7,7 @@
 
 [
     uuid(b2be3dae-f2bd-11d2-87a7-8647ca15aa77),
-    version(1.1)
+    version(2.0)
 ]
 interface sec_auth
 {
@@ -19,7 +19,7 @@ void sec_auth_ms_nthash([in]         handle_t         handle,
                         [in, string] char             *principal,
                         [in]         byte             challenge[8],
                         [in]         byte             response[24], 
-                        [out, ref]   sec_passwd_rec_t *pw_entry,
+                        [out]        byte             dce_deskey[8],
                         [out, ref]   error_status_t   *status);
 
 [idempotent]
@@ -27,7 +27,7 @@ void sec_auth_ms_lmhash([in]         handle_t         handle,
                         [in, string] char             *principal,
                         [in]         byte             challenge[8],
                         [in]         byte             response[24], 
-                        [out, ref]   sec_passwd_rec_t *pw_entry,
+                        [out]        byte             dce_deskey[8],
                         [out, ref]   error_status_t   *status);
 
 [idempotent]
@@ -35,7 +35,7 @@ void sec_auth_apple_randnum([in]         handle_t         handle,
                             [in, string] char             *principal,
                             [in]         byte             challenge[8],
                             [in]         byte             response[8], 
-                            [out, ref]   sec_passwd_rec_t *pw_entry,
+                            [out]        byte             dce_deskey[8],
                             [out, ref]   error_status_t   *status);
 
 [idempotent]
@@ -45,7 +45,7 @@ void sec_auth_apple_rand2num([in]         handle_t         handle,
                              [in]         byte             c_response[8],
                              [in]         byte             c_challenge[8],
                              [out]        byte             s_response[8], 
-                             [out, ref]   sec_passwd_rec_t *pw_entry,
+                             [out]        byte             dce_deskey[8],
                              [out, ref]   error_status_t   *status);
 
 }

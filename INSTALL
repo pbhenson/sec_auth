@@ -22,7 +22,7 @@ Makefile in the idl subdirectory to point to its location on your system.
 If you wish to support AppleTalk encrypted passwords, you'll need libdes,
 available from:
 
-     ftp.psy.uq.oz.au/pub/Crypto/libeay
+     ftp://ftp.psy.uq.oz.au/pub/Crypto/libeay/
 
 
 sec_auth requires a password strength daemon. If you are currently running

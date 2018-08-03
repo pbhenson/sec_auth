@@ -1,4 +1,4 @@
-Extended Authentication Package (sec_auth) version 0.8
+Extended Authentication Package (sec_auth) version 1.0
 ------------------------------------------------------
 
 Introduction
@@ -69,6 +69,11 @@ mechanisms.
 Changes
 -------
 
+1.0 - Modified RPCs to return the DCE DES key directly, rather than
+      in a sec_passwd_rec_t. For some reason, gcc had trouble with
+      the tagged union, and sec_authd core dumped somewhat randomly.
+
+ 
 0.8 - Added support for Apple random number exchange authentication
       methods.
 

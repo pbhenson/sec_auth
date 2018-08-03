@@ -143,7 +143,7 @@ int decrypt_era(idl_char *principal, idl_char *era_name, idl_byte *buffer, unsig
 }
       
 
-void sec_auth_ms_hash(handle_t handle, idl_char *hash_type, idl_char *principal, idl_byte challenge[8], idl_byte response[24], sec_passwd_rec_t *pw_entry, error_status_t *status)
+void sec_auth_ms_hash(handle_t handle, idl_char *hash_type, idl_char *principal, idl_byte challenge[8], idl_byte response[24], idl_byte dce_deskey[8], error_status_t *status)
 {
   idl_byte hash[16];
   idl_byte key[21];
@@ -162,11 +162,7 @@ void sec_auth_ms_hash(handle_t handle, idl_char *hash_type, idl_char *principal,
 
   if (memcmp(response, correct_response, 24) == 0)
     {
-      pw_entry->version_number = sec_passwd_c_version_none;
-      pw_entry->pepper = NULL;
-      pw_entry->key.key_type = sec_passwd_des;
-
-      if(!decrypt_era(principal, "auth_dce_deskey", pw_entry->key.tagged_union.des_key, 8)) {
+      if(!decrypt_era(principal, "auth_dce_deskey", dce_deskey, 8)) {
 	syslog(LOG_ERR, "sec_auth_ms_hash: failed to decrypt era auth_dce_deskey for %s", principal);
 	*status = sec_rgy_passwd_invalid;
 	return;
@@ -182,65 +178,55 @@ void sec_auth_ms_hash(handle_t handle, idl_char *hash_type, idl_char *principal,
   
 }
 
-void sec_auth_ms_nthash(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], sec_passwd_rec_t *pw_entry, error_status_t *status)
+void sec_auth_ms_nthash(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], idl_byte dce_deskey[8], error_status_t *status)
 {
-  pw_entry->key.key_type = sec_passwd_des;
-
   if (!validate_client(handle))
     *status = sec_rgy_not_authorized;
   else
 #ifdef SEC_AUTH_MS_NTHASH
-    sec_auth_ms_hash(handle, "auth_ms_nthash", principal, challenge, response, pw_entry, status);
+    sec_auth_ms_hash(handle, "auth_ms_nthash", principal, challenge, response, dce_deskey, status);
 #else
     *status = sec_rgy_not_implemented;
 #endif
 }
 
 
-void sec_auth_ms_lmhash(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], sec_passwd_rec_t *pw_entry, error_status_t *status)
+void sec_auth_ms_lmhash(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], idl_byte dce_deskey[8], error_status_t *status)
 {
-  pw_entry->key.key_type = sec_passwd_des;
-  
   if (!validate_client(handle))
     *status = sec_rgy_not_authorized;
   else
 #ifdef SEC_AUTH_MS_LMHASH
-    sec_auth_ms_hash(handle, "auth_ms_lmhash", principal, challenge, response, pw_entry, status);
+    sec_auth_ms_hash(handle, "auth_ms_lmhash", principal, challenge, response, dce_deskey, status);
 #else
     *status = sec_rgy_not_implemented;
 #endif
 }
 
 
-void sec_auth_apple_randnum(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], sec_passwd_rec_t *pw_entry, error_status_t *status)
+void sec_auth_apple_randnum(handle_t handle, idl_char *principal, idl_byte challenge[8], idl_byte response[24], idl_byte dce_deskey[8], error_status_t *status)
 {
-  pw_entry->key.key_type = sec_passwd_des;
-  
   if (!validate_client(handle))
     *status = sec_rgy_not_authorized;
   else
 #ifdef SEC_AUTH_APPLE_RANDNUM
     {
-      idl_byte deskey[8];
+      idl_byte apple_deskey[8];
       idl_byte correct_response[8];
       Key_schedule key_schedule;
       
-      if (!decrypt_era(principal, "auth_apple_deskey", deskey, 8)) {
+      if (!decrypt_era(principal, "auth_apple_deskey", apple_deskey, 8)) {
 	syslog(LOG_ERR, "sec_auth_apple_randnum: failed to decrypt era auth_apple_deskey for %s", principal);
 	*status = sec_rgy_passwd_invalid;
 	return;
       }
 
-      key_sched((C_Block *) deskey, key_schedule);
+      key_sched((C_Block *) apple_deskey, key_schedule);
       ecb_encrypt((C_Block *) challenge, (C_Block *) correct_response, key_schedule, DES_ENCRYPT);
   
       if (memcmp(response, correct_response, 8) == 0)
 	{
-	  pw_entry->version_number = sec_passwd_c_version_none;
-	  pw_entry->pepper = NULL;
-	  pw_entry->key.key_type = sec_passwd_des;
-	  
-	  if(!decrypt_era(principal, "auth_dce_deskey", pw_entry->key.tagged_union.des_key, 8)) {
+	  if(!decrypt_era(principal, "auth_dce_deskey", dce_deskey, 8)) {
 	    syslog(LOG_ERR, "sec_auth_apple_randnum: failed to decrypt era auth_dce_deskey for %s", principal);
 	    *status = sec_rgy_passwd_invalid;
 	    return;
@@ -259,39 +245,33 @@ void sec_auth_apple_randnum(handle_t handle, idl_char *principal, idl_byte chall
 #endif
 }
 
-void sec_auth_apple_rand2num(handle_t handle, idl_char *principal, idl_byte s_challenge[8], idl_byte c_response[8], idl_byte c_challenge[8], idl_byte s_response[8], sec_passwd_rec_t *pw_entry, error_status_t *status)
+void sec_auth_apple_rand2num(handle_t handle, idl_char *principal, idl_byte s_challenge[8], idl_byte c_response[8], idl_byte c_challenge[8], idl_byte s_response[8], idl_byte dce_deskey[8], error_status_t *status)
 {
-  pw_entry->key.key_type = sec_passwd_des;
-  
   if (!validate_client(handle))
     *status = sec_rgy_not_authorized;
   else
 #ifdef SEC_AUTH_APPLE_RAND2NUM
     {
-      idl_byte deskey[8];
+      idl_byte apple_deskey[8];
       idl_byte correct_response[8];
       Key_schedule key_schedule;
       int index;
 
-      if (!decrypt_era(principal, "auth_apple_deskey", deskey, 8)) {
+      if (!decrypt_era(principal, "auth_apple_deskey", apple_deskey, 8)) {
 	syslog(LOG_ERR, "sec_auth_apple_rand2num: failed to decrypt era auth_apple_deskey for %s", principal);
 	*status = sec_rgy_passwd_invalid;
 	return;
       }
 
       for (index = 0; index < 8; index++)
-	deskey[index] <<= 1;
+	apple_deskey[index] <<= 1;
 	
-      key_sched((C_Block *) deskey, key_schedule);
+      key_sched((C_Block *) apple_deskey, key_schedule);
       ecb_encrypt((C_Block *) s_challenge, (C_Block *) correct_response, key_schedule, DES_ENCRYPT);
   
       if (memcmp(c_response, correct_response, 8) == 0)
 	{
-	  pw_entry->version_number = sec_passwd_c_version_none;
-	  pw_entry->pepper = NULL;
-	  pw_entry->key.key_type = sec_passwd_des;
-	  
-	  if(!decrypt_era(principal, "auth_dce_deskey", pw_entry->key.tagged_union.des_key, 8)) {
+	  if(!decrypt_era(principal, "auth_dce_deskey", dce_deskey, 8)) {
 	    syslog(LOG_ERR, "sec_auth_apple_rand2num: failed to decrypt era auth_dce_deskey for %s", principal);
 	    *status = sec_rgy_passwd_invalid;
 	    return;

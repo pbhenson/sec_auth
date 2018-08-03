@@ -21,7 +21,7 @@ sec_auth.timestamp: sec_auth.idl
 sec_auth.h: sec_auth.h.in
 	head -4 sec_auth.h.in > sec_auth.h; \
           echo `grep SEC_AUTH_RPC_GROUP ../config.h` >> sec_auth.h; \
-          echo "#define SEC_AUTH_C_IFSPEC sec_auth_v1_1_c_ifspec" >> sec_auth.h; \
+          echo "#define SEC_AUTH_C_IFSPEC sec_auth_v2_0_c_ifspec" >> sec_auth.h; \
           tail +5 sec_auth.h.in >> sec_auth.h
 
 clean:
