@@ -1,0 +1,82 @@
+Extended Authentication Package (sec_auth) version 0.5
+------------------------------------------------------
+
+Introduction
+------------
+
+While DCE and DFS provide a secure and reliable infrastructure, providing
+support for legacy services is often problematic, particularly when it
+comes to authentication. At best, you're forced to use plaintext
+passwords. In some cases the authentication protocol used by the legacy
+service doesn't even support plaintext passwords, which prevents
+authentication to DCE completely.
+
+The goal of the sec_auth package is to provide a robust and extensible
+framework for supporting alternative methods to authenticate to DCE. This
+allows you to use the native authentication method of a legacy service, yet
+still reap the benefits of DCE and DFS.
+
+Currently, sec_auth supports the Microsoft Windows challenge/response
+authentication system including both the original LAN manager version and
+the newer NT version. Combined with an enhanced version of Samba, Windows
+clients can gain access to DFS using encrypted, rather than plaintext,
+passwords. Not only is this more secure, it removes the need for any
+registry modifications on the client, as well as providing better
+integration with Windows NT. Future versions of sec_auth will support the
+Apple random number exchange authentication method and possibly other
+systems.
+
+
+Design
+------
+
+The problem with non-plaintext password legacy authentication systems is
+that while a legacy server might be convinced of a client's identity, it
+cannot than authenticate the client to DCE and acquire credentials. To
+successfully authenticate to DCE requires a plaintext password, a Kerberos
+ticket granting ticket (TGT), or a DES key. While many legacy application
+systems support a plaintext password mode of operation, transferring
+important authentication data over the network in plaintext is a risky
+method that should be avoided as much as possible.
+
+The approach taken by sec_auth to overcome these problems is to maintain a
+DES key for each user. After successfully proving knowledge of a user's
+password via a legacy authentication system, the DES key is provided to the
+legacy server to authenticate the user to DCE. Since a DES key is a
+password equivalent, care must be taken in its storage. The DES key is
+stored in an extended registry attribute in the security registry. All
+other sensitive data to support the legacy authentication systems is also
+stored in extended registry attributes. The sec_auth package includes a
+password strength daemon that updates attributes, allowing users to utilize
+any password changing mechanism available. When a legacy server needs to
+authenticate, it makes a secure DCE RPC to the sec_auth daemon, which uses
+the extended registry attributes to determine whether the authentication
+attempt was successful, and if so, securely returns the user's DES key so
+the legacy server can acquire credentials on behalf of the user.
+
+The extended registry attributes are protected with an ACL that limits
+access to only authorized principals. In addition, they're encrypted with a
+key known only to the password strength daemon and sec_auth daemon. The
+daemons run on the same systems as your security servers, presumably
+highly secure systems (if someone has acquired unauthorized root privileges
+on a security server, I think you have bigger problems than the potential
+decryption of a user's DES key ;).  I believe the design of sec_auth
+provides good security while still supporting alternative authentication
+mechanisms.
+
+
+Changes
+-------
+
+0.5 - first publicly released version
+
+
+Feedback/Availability
+---------------------
+
+Please report any bugs or feature requests to <henson@acm.org>.
+
+
+The latest version of sec_auth is currently available at:
+
+     http://www.csupomona.edu/~henson/www/projects/sec_auth/

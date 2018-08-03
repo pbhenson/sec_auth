@@ -1,0 +1,7 @@
+interface sec_auth
+{
+
+	sec_auth_ms_nthash([comm_status, fault_status] status);
+	sec_auth_ms_lmhash([comm_status, fault_status] status);
+
+}

@@ -1,0 +1,223 @@
+Prerequisites
+-------------
+
+sec_auth requires the Kerberos V libraries and include files. Edit the
+Makefile and modify KRB5_ROOT to the directory where you installed Kerberos
+V. If your version of the DCE library (libdce) has name space collisions
+with the Kerberos libraries, you'll need to patch the Kerberos source code
+to remove them and recompile, or convince your DCE vendor to fix them in
+the DCE library. Transarc's DCE 2.0 for Solaris 2.6 has two collisions
+which should be fixed in a future patch. Contact me for more details on a
+workaround until the patch is released.
+
+The DCE IDL compiler is required as well as the rsec_pwd_mgmt.idl file. If
+this file is not located in /usr/include/dce on your system, edit the
+Makefile in the idl subdirectory to point to its location on your system.
+
+sec_auth requires a password strength daemon. If you are currently running
+a password strength daemon, you will need to either include its
+functionality in sec_auth's password strength daemon, or vice versa.  The
+extended registry attribute update code is completely contained in one
+object file, and would only require the addition of two function calls to
+existing password strength daemon code.
+
+
+Configuration
+-------------
+
+Configuring sec_auth is somewhat involved, but well worth the
+effort. Please read all of the following instructions and be sure you
+understand them before proceeding. Registry, CDS, and principal
+configuration must be performed by an appropriately authorized account.
+
+
+1. sec_auth Configuration
+
+sec_auth uses CDS to store binding information. If you do not wish to use
+the default entries, edit the config.h file and change the appropriate
+definitions, listed below. It is recommended that you use the default CDS
+names; if you change them, be sure to use your choices throughout the
+remaining steps.
+
+     #define SEC_AUTH_RPC_ENTRY_PREFIX "/.:/subsys/dce/sec_auth"
+     #define SEC_AUTH_RPC_GROUP_NAME   "/.:/sec_auth"
+     #define PWD_STRENGTHD_RPC_ENTRY   "/.:/subsys/dce/pwd_mgmt/pwd_strengthd"
+
+
+Extended registry attributes maintained by sec_auth are encrypted. You must
+edit the config.h file and change the SEC_AUTH_KEY_SALT and
+SEC_AUTH_KEY_STRING definitions. These two strings are used to generate the
+secret key used for attribute encryption. You are advised to use random
+strings of reasonable length. Make sure that these strings remain secret;
+while the extended registry attributes are also protected by an ACL, they
+may pass over the network in the clear, and anyone possessing the strings
+could potentially decrypt them. However, it is imperative that you remember
+these strings because future versions of sec_auth must be compiled with
+them to make any use of existing encrypted attributes. Note also that these
+strings appear in plaintext in the compiled binaries. In summary, be sure
+to protect the header file and the binaries from unauthorized access.
+
+     #define SEC_AUTH_KEY_SALT         "<salt>"
+     #define SEC_AUTH_KEY_STRING       "<key>"
+
+
+By default, sec_auth RPCs can only be accessed by host principals (e.g.,
+hosts/foo/self), which are generally associated with processes running as
+root. This is to help prevent brute force attacks on the legacy
+authentication systems. The RPCs can also be accessed by principals in the
+group named in the SEC_AUTH_GOD_GROUP definition in the config.h
+file. Change the definition to the appropriate highly priviliged group at
+your site or disable the capability by defining SEC_AUTH_GOD_GROUP to be
+"".
+
+     #define SEC_AUTH_GOD_GROUP        "dceadmin"
+
+
+sec_auth uses a password strength daemon to maintain extended registry
+attributes. If you wish to change the default principal name or keytab
+location, change the definitions listed below in the config.h file.
+
+     #define PWD_STRENGTHD_PRINCIPAL "pwd_strengthd"
+     #define PWD_STRENGTHD_KEYTAB "FILE:/krb5/pwd_strengthd.keytab"
+
+
+You are now ready to compile sec_auth. Simply type make to generate the
+sec_auth daemon (sec_authd), the password strength daemon (pwd_strengthd),
+as well as the include file and library needed for sec_auth clients.
+
+
+2. Registry Configuration
+
+sec_auth requires the creation of several extended registry attribute
+schemas. The following dcecp commands will create the appropriate schemas:
+
+     dcecp -c xattrschema create /.:/sec/xattrschema/auth_dce_deskey \
+        -aclmgr {principal m m m m} -annotation "DCE DES key" -applydefs no \
+        -encoding byte -intercell reject -multivalued no -reserved yes -unique no
+
+     dcecp -c xattrschema create /.:/sec/xattrschema/auth_ms_nthash \
+        -aclmgr {principal m m m m} -annotation "Microsoft NT hash" -applydefs no \
+        -encoding byte -intercell reject -multivalued no -reserved yes -unique no
+
+     dcecp -c xattrschema create /.:/sec/xattrschema/auth_ms_lmhash \
+        -aclmgr {principal m m m m} -annotation "Microsoft LM hash" -applydefs no \
+        -encoding byte -intercell reject  -multivalued no -reserved yes -unique no
+
+
+sec_auth requires the creation of a password strength daemon principal and
+account. The following dcecp commands (replacing <password> with your
+password) will create them:
+
+     dcecp -c principal create pwd_strengthd
+
+     dcecp -c account create pwd_strengthd -mypwd <password> -password temporary \
+        -group none -organization none
+
+
+sec_auth requires a group to control access to CDS entries and extended
+registry attributes. The password strength daemon principal and the host
+principals of all machines that will run the sec_auth daemon must be added
+to the group. The following dcecp commands (replacing <hostname> for each
+host principal) will create the group and add the appropriate members:
+
+     dcecp -c group create sec_auth -inprojlist yes
+
+     dcecp -c group add sec_auth -member pwd_strengthd
+     dcecp -c group add sec_auth -member hosts/<hostname>/self
+
+
+3. CDS Configuration
+
+sec_auth requires a CDS RPC group and directory. The following commands
+will create them and set appropriate ACLs:
+
+     dcecp -c rpcgroup create /.:/sec_auth
+     acl_edit /.:/sec_auth -e -m group:sec_auth:rw
+
+     dcecp -c directory create /.:/subsys/dce/sec_auth
+     acl_edit /.:/subsys/dce/sec_auth -m group:sec_auth:rwi
+
+
+The password strength daemon also requires a CDS entry. The following
+commands will create it and set appropriate ACLs:
+
+     dcecp -c directory create /.:/subsys/dce/pwd_mgmt
+     dcecp -c object create /.:/subsys/dce/pwd_mgmt/pwd_strengthd
+     acl_edit /.:/subsys/dce/pwd_mgmt/pwd_strengthd -e -m user:pwd_strengthd:rwt
+
+
+4. Principal Configuration
+
+All principals that will authenticate using the sec_auth framework must be
+configured to use password strength management. This includes existing and
+future principals. You must apply the following extended registry
+attributes to existing principals, and ensure that they are also applied
+when new principals are created. We use DCE-Perl to accomplish this;
+however, the following dcecp commands (replacing <principal> for each
+principal) will apply the attributes:
+
+     dcecp -c principal modify <principal> -add '{pwd_val_type 1}'
+
+     dcecp -c principal modify <principal> -add '{pwd_mgmt_binding \
+        {{dce /.:/pwd_strengthd pktprivacy secret name} \
+        /.:/subsys/dce/pwd_mgmt/pwd_strengthd}}'
+
+
+sec_auth requires sufficient access to create and read principals' extended
+registry attributes.  The following command (replacing <principal> for each
+principal) will appropriately modify a principal's ACL:
+
+     acl_edit /.:/sec/principal/<principal> -m group:sec_auth:rmg
+
+
+New principals must also have the appropriate ACL entry. This can be
+applied after the principal is created, or inherited automatically. The
+following command will cause all future principals to inherit the
+appropriate ACL entry:
+
+     acl_edit /.:/sec/principal -io -m group:sec_auth:rmg
+
+
+5. pwd_strengthd Installation
+
+Copy the pwd_strengthd binary to a local file system on the master security
+server. Ideally, this should be a machine only accessible by highly
+privileged users; at the very least, ensure the binary is only readable by
+root.
+
+A keytab must be created for the pwd_strengthd principal on the master
+security server. The following commands will create the keytab:
+
+     rgy_edit -update
+          ktadd -p pwd_strengthd -pw temporary -f /krb5/pwd_strengthd.keytab
+          ktadd -p pwd_strengthd -a -r -f /krb5/pwd_strengthd.keytab
+
+
+The password strength daemon must be started at boot after DCE has
+initialized.  Create an appropriate startup script to do so.
+
+
+6. sec_auth Installation
+
+Copy the sec_authd binary to a local file system on each machine that runs
+a security server. Ideally, these should be machines only accessible by
+highly privileged users; at the very least, ensure the binaries are only
+readable by root.
+
+The sec_auth daemon must be started at boot after DCE has initialized.
+Create appropriate startup scripts to do so.
+
+Copy the sec_auth.h include file from the idl directory to
+/usr/local/include or its equivalent location on your system. Copy the
+libsec_auth.a file from the idl directory /usr/local/lib or its equivalent
+location on your system.
+
+
+Servers Supported by sec_auth
+-----------------------------
+
+Currently, the only server supported by sec_auth is Samba. To take
+advantage of sec_auth support, you must install the DCE/DFS integration
+patch for Samba, available at:
+
+     http://www.csupomona.edu/~henson/www/projects/dce_patches/samba/

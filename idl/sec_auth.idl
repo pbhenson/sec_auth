@@ -1,0 +1,33 @@
+/*
+ * sec_auth
+ *
+ * Copyright (c) 1999 Paul Henson <henson@acm.org>
+ *
+ */
+
+[
+    uuid(b2be3dae-f2bd-11d2-87a7-8647ca15aa77),
+    version(1.0)
+]
+interface sec_auth
+{
+
+import "dce/passwd.idl";
+
+[idempotent]
+void sec_auth_ms_nthash([in]         handle_t         handle,
+                        [in, string] char             *principal,
+                        [in]         byte             challenge[8],
+                        [in]         byte             response[24], 
+                        [out, ref]   sec_passwd_rec_t *pw_entry,
+                        [out, ref]   error_status_t   *status);
+
+[idempotent]
+void sec_auth_ms_lmhash([in]         handle_t         handle,
+                        [in, string] char             *principal,
+                        [in]         byte             challenge[8],
+                        [in]         byte             response[24], 
+                        [out, ref]   sec_passwd_rec_t *pw_entry,
+                        [out, ref]   error_status_t   *status);
+
+}
