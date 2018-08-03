@@ -250,4 +250,4 @@ Currently, the servers supported by sec_auth are Samba and Netatalk. To
 take advantage of sec_auth support, you must install the DCE/DFS
 integration patches for Samba and/or Netatalk, available at:
 
-     http://www.csupomona.edu/~henson/www/projects/dce_patches/
+     https://github.com/pbhenson/dce_patches
